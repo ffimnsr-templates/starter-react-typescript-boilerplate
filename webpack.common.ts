@@ -2,14 +2,25 @@ import webpack from "webpack";
 import path from "path";
 import MiniCssExtractPlugin from "mini-css-extract-plugin";
 import HtmlWebpackPlugin from "html-webpack-plugin";
+import ForkTsCheckerWebpackPlugin from "fork-ts-checker-webpack-plugin";
+import pack from "./package.json";
+
+const revision = require("child_process")
+  .execSync("git rev-parse --short HEAD")
+  .toString()
+  .trim();
+
+const handler = (percentage, message, ...args) => {
+  // console.log(percentage, message, ...args);
+};
 
 const config: webpack.Configuration = {
   entry: {
-    psyche: path.resolve(__dirname, "src/Main.tsx")
+    oracle: path.resolve(__dirname, "src/Main.tsx"),
   },
   optimization: {
     runtimeChunk: true,
-    moduleIds: "hashed",
+    moduleIds: "deterministic",
     splitChunks: {
       maxInitialRequests: Infinity,
       maxAsyncRequests: Infinity,
@@ -18,79 +29,86 @@ const config: webpack.Configuration = {
           chunks: "initial",
           name: "vendors",
           test: /[\\/]node_modules[\\/]/,
-          enforce: true
-        }
-      }
+          enforce: true,
+        },
+      },
     },
-    occurrenceOrder: true
   },
   module: {
     rules: [
       {
-        test: /\.tsx?$/,
+        test: /\.[tj]sx?$/,
         include: path.resolve(__dirname, "src"),
         use: {
-          loader: "ts-loader"
-        }
+          loader: "babel-loader",
+        },
       },
       {
         test: /\.s[ac]ss$/,
-        use: [
-          MiniCssExtractPlugin.loader,
-          "css-loader",
-          "postcss-loader",
-          "sass-loader"
-        ]
+        use: [MiniCssExtractPlugin.loader, "css-loader", "postcss-loader", "sass-loader"],
       },
       {
         test: /\.css$/,
-        use: [MiniCssExtractPlugin.loader, "css-loader"]
+        use: [MiniCssExtractPlugin.loader, "css-loader", "postcss-loader"],
       },
       {
-        test: /\.(png|jpg|gif)$/,
+        test: /\.(png|svg|jpg|gif)$/,
         include: [path.resolve(__dirname, "static/images")],
         use: [
           {
             loader: "file-loader",
             options: {
-              name: "[name].[ext]"
-            }
-          }
-        ]
+              name: "[name].[ext]",
+              outputPath: "assets/images/",
+              publicPath: "/assets/images/",
+            },
+          },
+        ],
       },
       {
-        test: /\.(eot|ttf|otf|svg|woff(2)?)(\?[a-z0-9]+)?$/,
+        test: /\.(eot|ttf|otf|woff(2)?)(\?[a-z0-9]+)?$/,
         use: [
           {
             loader: "file-loader",
             options: {
               name: "[name].[ext]",
-              outputPath: "../fonts/",
-              publicPath: "../fonts/"
-            }
-          }
-        ]
-      }
-    ]
+              outputPath: "assets/fonts/",
+              publicPath: "/assets/fonts/",
+            },
+          },
+        ],
+      },
+    ],
   },
   resolve: {
-    extensions: [".ts", ".tsx", ".js", ".jsx", ".json"]
+    extensions: [".ts", ".tsx", ".js", ".jsx", ".json"],
+    alias: {
+      "@": path.resolve(__dirname, "src"),
+    },
   },
   output: {
     filename: "[name].bundle.js",
     chunkFilename: "[name].bundle.js",
     path: path.resolve(__dirname, "./dist/"),
+    publicPath: "/",
   },
   plugins: [
+    new webpack.ProgressPlugin(handler),
+    new ForkTsCheckerWebpackPlugin(),
     new MiniCssExtractPlugin({
-      filename: "[name].bundle.css"
+      filename: "[name].bundle.css",
     }),
     new HtmlWebpackPlugin({
       template: "src/templates/index.html",
-      minify: true
+      favicon: "src/assets/images/favicon.ico",
+      minify: true,
     }),
-    new webpack.BannerPlugin("Open Sesame")
-  ]
+    new webpack.DefinePlugin({
+      VERSION: JSON.stringify(pack.version),
+      BUILD_HASH: JSON.stringify(revision),
+    }),
+    new webpack.BannerPlugin(`Oracle v${pack.version}.${revision}`),
+  ],
 };
 
 export default config;

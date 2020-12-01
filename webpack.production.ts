@@ -1,30 +1,34 @@
 /* eslint "import/no-extraneous-dependencies": "error" */
 import webpack from "webpack";
+import path from "path";
 import merge from "webpack-merge";
-import UglifyJSWebpackPlugin from "uglifyjs-webpack-plugin";
+import TerserWebpackPlugin from "terser-webpack-plugin";
 import OptimizeCSSAssetsPlugin from "optimize-css-assets-webpack-plugin";
+import { CleanWebpackPlugin } from "clean-webpack-plugin";
 import common from "./webpack.common";
 
 module.exports = merge(common, {
   mode: "production",
-  devtool: "source-map",
   stats: "minimal",
   performance: {
-    hints: false
+    hints: false,
   },
   optimization: {
+    minimize: true,
     minimizer: [
-      new UglifyJSWebpackPlugin({
+      new TerserWebpackPlugin({
         parallel: true,
-        cache: true,
-        sourceMap: false
       }),
-      new OptimizeCSSAssetsPlugin({})
-    ]
+      new OptimizeCSSAssetsPlugin({}),
+    ],
   },
+  output: {
+    path: path.resolve(__dirname, "./dist/release/"),
+  },  
   plugins: [
+    new CleanWebpackPlugin(),
     new webpack.EnvironmentPlugin({
-      NODE_ENV: "production"
-    })
-  ]
+      NODE_ENV: "production",
+    }),
+  ],
 });
