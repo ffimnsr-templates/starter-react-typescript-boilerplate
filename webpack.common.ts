@@ -53,7 +53,7 @@ const config: webpack.Configuration = {
       },
       {
         test: /\.(png|svg|jpg|gif)$/,
-        include: [path.resolve(__dirname, "static/images")],
+        include: [path.resolve(__dirname, "src/assets/images")],
         use: [
           {
             loader: "file-loader",
