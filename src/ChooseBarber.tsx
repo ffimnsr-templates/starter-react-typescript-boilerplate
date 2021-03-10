@@ -4,9 +4,10 @@ import log from "loglevel";
 import { Logo } from "@/components/Logo";
 import { Container, PageHeader, Button } from "@/Commons";
 import { OrderCard } from "./components/OrderCard";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useHistory } from "react-router";
-import { BarberType } from "@/models";
+import { BarberType, ServiceType } from "@/models";
+import { useParams } from "react-router-dom";
 
 const PageOptions = styled.div`
   position: absolute;
@@ -21,6 +22,10 @@ const PageOptions = styled.div`
   overflow: hidden;
 `;
 
+type BarberCardProps = {
+  pressed: boolean;
+}
+
 const BarberCard = styled.div`
   width: 229px;
   height: 322px;
@@ -29,10 +34,16 @@ const BarberCard = styled.div`
   border-radius: 16px;
 
   &:hover {
-    background: #FFFFFF;
+    background: ${(props: BarberCardProps) => props.pressed ? "#161616" : "#FFFFFF"};
     border: 1px solid #E1E1E1;
     box-sizing: border-box;
     box-shadow: 0px 12px 24px rgba(0, 0, 0, 0.12);
+  }
+
+  background: ${(props: BarberCardProps) => props.pressed ? "#161616" : "transparent"};
+
+  & > div {
+    color: ${(props: BarberCardProps) => props.pressed ? "#FFFFFF" : "#000000"} !important;
   }
 `;
 
@@ -108,26 +119,55 @@ const GradientBotton = styled.div`
 
 export const ChooseBarber = () => {
   const history = useHistory();
-  const [barbers, setBarbers] = useState([]);
+  const { id } = useParams() as any;
+  const [barbers, setBarbers] = useState<BarberType[]>([]);
+  const [showOrderDialog, setShowOrderDialog] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(0);
 
   useEffect(() => {
-    fetch("/api/barbers/")
-      .then((res) => res.json())
-      .then((json) => {
-        log.info(json);
-        setBarbers(json);
-      });
-  }, []);
+    let url = "/api/barbers/";
 
-  const availableBarbers = barbers.map((barber: BarberType) => (
-    <BarberCard onClick={() => history.push(`/barbers/${barber.id}/services`)} key={barber.id}>
-      <BarberAvatar src={barber.photo} />
-      <BarberName>{`${barber.firstName} ${barber.lastName.charAt(0)}.`}</BarberName>
-      <BarberAvailability>Available Today</BarberAvailability>
-      <BarberDivider />
-      <BarberLink onClick={() => history.replace("/")}>About {barber.firstName}</BarberLink>
-    </BarberCard>
-  ));
+    fetch(url)
+      .then((res) => res.json())
+      .then((json: BarberType[]) => {
+        log.trace(json);
+        let temp = json;
+
+        if (id !== undefined) {
+          temp = json.filter((barber) => 
+            barber.services.find((service) => service.id === Number(id)))
+          log.trace(temp);
+        }
+        setBarbers(temp);
+      });
+  }, [id]);
+
+  const handleOnClick = useCallback((e, barber: BarberType) => {
+    e.preventDefault();
+
+    sessionStorage.setItem("barberName", `${barber.firstName} ${barber.lastName.charAt(0)}.`);
+
+    if (id !== undefined) {
+      setSelectedItem(barber.id);
+      setShowOrderDialog(true);
+    } else {
+      history.push(`/barbers/${barber.id}/services`);
+    }
+  }, [id]);
+
+  const availableBarbers = barbers.map((barber: BarberType) => {
+    const pressed = selectedItem === barber.id;
+
+    return (
+      <BarberCard pressed={pressed} onClick={(e) => handleOnClick(e, barber)} key={barber.id}>
+        <BarberAvatar src={barber.photo} />
+        <BarberName>{`${barber.firstName} ${barber.lastName.charAt(0)}.`}</BarberName>
+        <BarberAvailability>Available Today</BarberAvailability>
+        <BarberDivider />
+        <BarberLink onClick={() => history.replace("/")}>About {barber.firstName}</BarberLink>
+      </BarberCard>
+    );
+  });
 
   return (
     <Container>
@@ -138,7 +178,7 @@ export const ChooseBarber = () => {
       <PageOptions>
         {availableBarbers}
       </PageOptions>
-      <OrderCard />
+      <OrderCard visible={showOrderDialog} />
       <GradientBotton />
     </Container>
   );

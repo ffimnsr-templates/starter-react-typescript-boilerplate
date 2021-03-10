@@ -1,5 +1,6 @@
 import { Button } from "@/Commons";
 import * as React from "react";
+import log from "loglevel";
 import { useHistory } from "react-router";
 import styled from "styled-components";
 
@@ -41,11 +42,21 @@ const OrderButton = styled(Button)`
 `;
 
 const OrderBarberContainer = styled.div`
-  margin-top: 32px;
+  position: absolute;
+  top: 105px;
+  left: 38.5px;
   display: flex;
+  width: 80%;
 `;
 
 const OrderNumber = styled.div`
+  background: #000000;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center; 
+  border-radius: 50%;
   font-family: SF Pro Display;
   font-style: normal;
   font-weight: bold;
@@ -54,6 +65,8 @@ const OrderNumber = styled.div`
 
   /* identical to box height */
   text-align: center;
+  margin-right: 18.5px;
+  margin-top: 1.5px;
 
   color: #FFFFFF;
 `;
@@ -82,9 +95,14 @@ const OrderPrice = styled.div`
   letter-spacing: 0.55px;
 
   color: #000000;
+  flex: 1;
+  text-align: right;
 `;
 
 const OrderList = styled.div`
+  position: absolute;
+  top: 145px;
+  left: 38.5px;
   display: flex;
 `;
 
@@ -101,21 +119,35 @@ const OrderItem = styled.div`
   color: #3C3C43;
 `;
 
-export const OrderCard = () => {
+type OrderCardProps = {
+  visible: boolean;
+}
+
+export const OrderCard = ({ visible }: OrderCardProps) => {
   const history = useHistory();
 
-  return (
-    <Container>
-      <Title>Your order</Title>
-      <OrderBarberContainer>
-        <OrderNumber>1</OrderNumber>
-        <OrderBarber>Derek L.</OrderBarber>
-        <OrderPrice>$50</OrderPrice>
-      </OrderBarberContainer>
-      <OrderList>
-        <OrderItem>Premium Cut</OrderItem>
-      </OrderList>
-      <OrderButton onClick={() => history.replace("/")}>Choose a time</OrderButton>
-    </Container>
-  );
+  if (visible) {
+    const barberName = sessionStorage.getItem("barberName");
+    const serviceCredit = sessionStorage.getItem("serviceCredit");
+    const serviceName = sessionStorage.getItem("serviceName");
+
+    log.trace(`Order: ${barberName} with ${serviceName}, ${serviceCredit}`);
+
+    return (
+      <Container>
+        <Title>Your order</Title>
+        <OrderBarberContainer>
+          <OrderNumber>1</OrderNumber>
+          <OrderBarber>{barberName}</OrderBarber>
+          <OrderPrice>{serviceCredit}</OrderPrice>
+        </OrderBarberContainer>
+        <OrderList>
+          <OrderItem>{serviceName}</OrderItem>
+        </OrderList>
+        <OrderButton onClick={() => history.replace("/")}>Choose a time</OrderButton>
+      </Container>
+    );
+  }
+
+  return null;
 }

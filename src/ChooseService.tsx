@@ -4,9 +4,9 @@ import log from "loglevel";
 import { Logo } from "@/components/Logo";
 import { Container, PageHeader, Button } from "@/Commons";
 import { OrderCard } from "@/components/OrderCard";
-import { ServiceType } from "@/models";
-import { useEffect, useState } from "react";
-import { useHistory } from "react-router";
+import { ServiceType, BarberType } from "@/models";
+import { useCallback, useEffect, useState } from "react";
+import { useHistory, useParams } from "react-router";
 
 const PageOptions = styled.div`
   position: absolute;
@@ -21,6 +21,10 @@ const PageOptions = styled.div`
   overflow: hidden;
 `;
 
+type ServiceCardProps = {
+  pressed: boolean;
+}
+
 const ServiceCard = styled.div`
   width: 230px;
   height: 134px;
@@ -30,9 +34,15 @@ const ServiceCard = styled.div`
   position: relative;
 
   &:hover {
-    background: #FFFFFF;
+    background: ${(props: ServiceCardProps) => props.pressed ? "#161616" : "#FFFFFF"};
     border: 1px solid #E1E1E1;
     box-shadow: 0px 12px 24px rgba(0, 0, 0, 0.12);
+  }
+
+  background: ${(props: ServiceCardProps) => props.pressed ? "#161616" : "transparent"};
+
+  & > div, & > div > div {
+    color: ${(props: ServiceCardProps) => props.pressed ? "#FFFFFF" : "#000000"} !important;
   }
 `;
 
@@ -89,22 +99,51 @@ const ServicePrice = styled.div`
 
 export const ChooseService = () => {
   const history = useHistory();
-  const [services, setServices] = useState([]);
-
+  const { id } = useParams() as any;
+  const [services, setServices] = useState<ServiceType[]>([]);
+  const [showOrderDialog, setShowOrderDialog] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(0);
+  
   useEffect(() => {
-    fetch("/api/services/")
+    let url = "/api/services/";
+    if (id !== undefined) {
+      url = "/api/barbers/";
+    }
+
+    fetch(url)
       .then((res) => res.json())
-      .then((json) => {
-        log.info(json);
-        setServices(json);
+      .then((json: ServiceType[] | BarberType[]) => {
+        log.trace(json);
+        let result = json;
+        if (id !== undefined) {
+          const temp = (json as BarberType[])[id];
+          log.trace(temp);
+          result = temp ? temp.services : [];
+        }
+        setServices(result as ServiceType[]);
       });
-  }, []);
+  }, [id]);
+
+  const handleOnClick = useCallback((e, service: ServiceType, value: string) => {
+    e.preventDefault();
+
+    sessionStorage.setItem("serviceCredit", value);
+    sessionStorage.setItem("serviceName", service.name);
+
+    if (id !== undefined) {
+      setSelectedItem(service.id);
+      setShowOrderDialog(true);
+    } else {
+      history.push(`/services/${service.id}/barbers`);
+    }
+  }, [id]);
 
   const availableServices = services.map((service: ServiceType) => {
     const value = new Intl.NumberFormat("en-US", { style: "currency", currency: service.currency }).format(service.price / 100).replace(/\D00(?=\D*$)/, '');
+    const pressed = selectedItem === service.id;
 
     return (
-      <ServiceCard key={service.id} onClick={() => history.push(`/services/${service.id}/barbers`)}>
+      <ServiceCard pressed={pressed} key={service.id} onClick={(e) => handleOnClick(e, service, value)}>
         <ServiceName>{service.name}</ServiceName>
         <Split>
           <ServiceDuration>{service.duration} min</ServiceDuration>
@@ -122,8 +161,9 @@ export const ChooseService = () => {
       <PageHeader>Choose a service</PageHeader>
       <PageOptions>
         {availableServices}
+        {services.length === 0 ? "Loading..." : null}
       </PageOptions>
-      <OrderCard />
+      <OrderCard visible={showOrderDialog} />
     </Container>
   );
 }
